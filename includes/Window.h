@@ -11,8 +11,8 @@ namespace NB {
 
 class NBWindow {
 public:
-    NBWindow(const std::array<uint16_t, 2>, const char* initName, GLFWmonitor* initMonitor=NULL, GLFWwindow* initWindow=NULL);
-    NBWindow(const uint16_t, const uint16_t, const char* initName, GLFWmonitor* initMonitor=NULL, GLFWwindow* initWindow=NULL);
+    NBWindow(const std::array<uint16_t, 2>, const char*, GLFWmonitor* initMonitor=NULL, GLFWwindow* initWindow=NULL);
+    NBWindow(const uint16_t, const uint16_t, const char*, GLFWmonitor* initMonitor=NULL, GLFWwindow* initWindow=NULL);
 
     int init();
     GLFWwindow* getWindow() const;

@@ -1,32 +1,23 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
+#include <thread>
 
 #include "Window.h"
+#include "Events.h"
 #include "funcs.h"
 #include "shader.h"
 
 
 int main() {
     std::cout << "Hello World!\n";
-    
-    NB::NBWindow mywindow(800, 600, "Classy!");
-    mywindow.resize(50, 50);
-    mywindow.init();
-    GLFWwindow* window = mywindow.getWindow();
 
-    glfwSetFramebufferSizeCallback(window, framebuffer_callback);
+    // std::shared_ptr<std::atomic<bool>> shouldClose(new std::atomic<bool>);
+    // *shouldClose = false;
+    //std::atomic<uint16_t> r=51, g=77, b=77;
+    std::atomic<bool> shouldClose= false;
 
-    while(!glfwWindowShouldClose(window)) {
-        processInputs(window);
+    std::thread renderingThread(renderingProcess, std::ref(shouldClose));
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glfwPollEvents();
-        glfwSwapBuffers(window);
-    }
-
-    glfwTerminate();
+    renderingThread.join();    
     return 0;
 }

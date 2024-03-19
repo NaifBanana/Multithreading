@@ -38,7 +38,6 @@ int NBWindow::init() {
         return -1;
     }
 
-    std::cout << windowSize[0] << " by " << windowSize[1] << "\n";
     glViewport(0, 0, windowSize[0], windowSize[1]);
     running=true;
     return 0;
