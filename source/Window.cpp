@@ -1,22 +1,45 @@
 #include "Window.h"
 namespace NB {
 
+std::atomic<uint8_t> NBWindow::windowCount = 0;
+
 NBWindow::NBWindow(const uint16_t x, const uint16_t y, const char* initName, GLFWmonitor* initMonitor, GLFWwindow* initWindow) {
+    if (windowCount == 0) {
+        glfwInit();
+    }
+
     windowSize = {x, y};
     windowName = std::string(initName);
     monitor = initMonitor;
     shareWindow = initWindow;
 
-    glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    ready = true;
+    window = glfwCreateWindow(windowSize[0], windowSize[0], windowName.c_str(), monitor, shareWindow);
+    if (window == NULL) {
+        std::cout << "NB::NBWINDOW::COULD NOT CREATE WINDOW(" << windowName << ")\n";
+        if (windowCount == 0) { glfwTerminate(); }
+        ready = false;
+    } else {
+        windowCount++;
+        ready = true;
+    }
+
 }
 
 NBWindow::NBWindow(const std::array<uint16_t, 2> initSize, const char* initName, GLFWmonitor* initMonitor, GLFWwindow* initWindow) :
     NBWindow(initSize[0], initSize[1], initName, initMonitor, initWindow){}
+
+NBWindow::~NBWindow() {
+    glfwSetWindowShouldClose(window, true);
+    glfwDestroyWindow(window);
+    windowCount--;
+    if (windowCount == 0) {
+        glfwTerminate();
+    }
+}
 
 int NBWindow::init() {
     if (!ready) {
@@ -24,17 +47,11 @@ int NBWindow::init() {
         return -1;
     }
 
-    window = glfwCreateWindow(windowSize[0], windowSize[0], windowName.c_str(), monitor, shareWindow);
-    if (window == NULL) {
-        std::cout << "NB::NBWINDOW::COULD NOT CREATE WINDOW\n";
-        glfwTerminate();
-        return -1;
-    }
     glfwMakeContextCurrent(window);
     
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "NB::NBWINDOW::COULD NOT INITIALIZE GLAD\n";
-        glfwTerminate();
+        if (windowCount == 0) { glfwTerminate(); }
         return -1;
     }
 

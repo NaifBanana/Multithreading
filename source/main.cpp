@@ -7,17 +7,35 @@
 #include "funcs.h"
 #include "shader.h"
 
+extern NB::NBWindow* aWindow;
+extern NB::NBWindow* bWindow;
+extern NB::NBEventListener my_listener;
 
 int main() {
     std::cout << "Hello World!\n";
 
-    // std::shared_ptr<std::atomic<bool>> shouldClose(new std::atomic<bool>);
-    // *shouldClose = false;
-    //std::atomic<uint16_t> r=51, g=77, b=77;
-    std::atomic<bool> shouldClose= false;
+{
+    NB::NBWindow windowa(800, 600, "Multithreading?");
+    NB::NBWindow windowb(800, 600, "Multithreading!");
+    aWindow = &windowa;
+    bWindow = &windowb;
 
-    std::thread renderingThread(renderingProcess, std::ref(shouldClose));
+    glfwMakeContextCurrent(NULL);
+    std::thread renderingThreadA(renderingProcessA);
+    std::thread renderingThreadB(renderingProcessB);
 
-    renderingThread.join();    
+    renderingThreadB.detach();
+    renderingThreadA.detach();
+
+    while(!my_listener.snoop(PROGRAM_SHOULD_CLOSE)) {
+        glfwPollEvents();
+        my_listener.listen();
+    }
+    std::cout << "YOUVE REACHED THE END OF THE MAIN THREAD!\n";
+
+}
+
+    state_register* state = my_listener.getStatePtr();
+    delete state;
     return 0;
 }

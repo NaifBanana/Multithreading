@@ -1,57 +1,127 @@
 #include "funcs.h"
 
+void aPressAlert() {
+    std::cout << "A PRESSED!\n";
+}
+
+void bPressAlert() {
+    std::cout << "B PRESSED\n";
+}
+
+NB::NBEvent aKeyEvent(A_PRESSED, aPressAlert, "A_PRESSED");
+NB::NBEvent bKeyEvent(B_PRESSED, bPressAlert, "B_PRESSED");
+NB::NBEvent windowCloseEvent(CLOSE_WIND_SIG, stopWindows, "CLOSE_WINDOWS_SIG");
+
+NB::NBState windowAIsReadyState(WINDOW_READY_A, "WINDOW_A_READY");
+NB::NBState windowBIsReadyState(WINDOW_READY_B, "WINDOW_B_READY");
+NB::NBState windowShouldCloseState(WINDOW_SHOULD_CLOSE, "WINDOW_CLOSING_STATE");
+NB::NBState programCloseState(PROGRAM_SHOULD_CLOSE, "PROGRAM_CLOSING_STATE");
+
+std::array<NB::NBEvent, 7> event_list= {
+    windowCloseEvent,
+    bKeyEvent,
+    aKeyEvent,
+    
+    windowAIsReadyState,
+    windowBIsReadyState,
+    windowShouldCloseState,
+    programCloseState
+};
+NB::NBEventListener my_listener(event_list);
+
+NB::NBWindow* aWindow;
+NB::NBWindow* bWindow;
+
 void framebuffer_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-void processInputs(GLFWwindow* window) {
+void processInputsA() {
+    GLFWwindow* window = aWindow->getWindow();
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, true);
+        my_listener.raiseFlags(CLOSE_WIND_SIG);
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        my_listener.raiseFlags(A_PRESSED);
     }
 }
 
-int renderingProcess(std::atomic<bool>& shouldStop) {
-    std::cout << "Howdy from rendering!\n";
-    NB::NBWindow mywindow(800, 600, "Multithreading?");
-    mywindow.init();
-    GLFWwindow* window = mywindow.getWindow();
+void processInputsB() {
+    GLFWwindow* window = bWindow->getWindow();
+    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        my_listener.raiseFlags(CLOSE_WIND_SIG);
+    }
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
+        my_listener.raiseFlags(B_PRESSED);
+    }
+}
 
-    glfwSetFramebufferSizeCallback(window, framebuffer_callback);
+void windowClosedUser(GLFWwindow* windowToClose) {
+    my_listener.raiseFlags(CLOSE_WIND_SIG);
+}
 
-    while(!glfwWindowShouldClose(window) && !shouldStop) {
-        processInputs(window);
+void stopWindows() {
+    my_listener.raiseFlags(WINDOW_SHOULD_CLOSE);
+}
+
+int renderingProcessA() {
+    std::cout << "Howdy from rendering A!\n";
+    if ( aWindow->init() ) { return -1; }
+
+    my_listener.raiseFlags(WINDOW_READY_A);
+
+    glfwSetFramebufferSizeCallback(aWindow->getWindow(), framebuffer_callback);
+    glfwSetWindowCloseCallback(aWindow->getWindow(), windowClosedUser);
+
+    uint64_t count = 0;
+
+    while(!my_listener.snoop(WINDOW_SHOULD_CLOSE)) {
+        glfwMakeContextCurrent(aWindow->getWindow());
+        processInputsA();
         
         // glClearColor(r/255.0f, g/255.0f, b/255.0f, 1.0f);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glfwPollEvents();
-        glfwSwapBuffers(window);
+        //glfwPollEvents();
+        glfwSwapBuffers(aWindow->getWindow());
+        count++;
     }
-    shouldStop = true;
-    glfwSetWindowShouldClose(window, true);
+    my_listener.dropFlags(WINDOW_READY_A);
+    while(my_listener.snoop(WINDOW_READY_B)) {}
+    my_listener.raiseFlags(programCloseState);
 
-    glfwTerminate();
     return 0;
 }
 
-/*
-int consoleProcess(std::atomic<bool>& shouldStop) {
-    char controlInput;
-    while(!shouldStop) {
-        std::cin >> controlInput;
-        switch (controlInput) {
-        case 'r':
-            r = (r==51)?0:51;
-            break;
-        case 'g':
-            g = (g==77)?0:77;
-            break;
-        case 'b':
-            b = (b==77)?0:77;
-            break;
-        default:
-            break;
-        }
+int renderingProcessB() {
+    std::cout << "Howdy from rendering B!\n";
+
+    if ( bWindow->init() ) { return -1; }
+
+    my_listener.raiseFlags(WINDOW_READY_B);
+
+    glfwSetFramebufferSizeCallback(bWindow->getWindow(), framebuffer_callback);
+    glfwSetWindowCloseCallback(bWindow->getWindow(), windowClosedUser);
+
+    uint64_t count = 0;
+
+    while(!my_listener.snoop(WINDOW_SHOULD_CLOSE)) {
+        //std::cout << "WINDOW B FRAME\t" << count << "\n";
+        glfwMakeContextCurrent(bWindow->getWindow());
+        processInputsB();
+
+        glClearColor(0.3f, 0.2f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        //glfwPollEvents();
+        glfwSwapBuffers(bWindow->getWindow());
+        count++;
     }
-}*/
+    my_listener.dropFlags(WINDOW_READY_B);
+    std::cout << "DONE RENDERING B\n";
+    while(my_listener.snoop(WINDOW_READY_A)) {}
+    my_listener.raiseFlags(programCloseState);
+
+    return 0;
+}

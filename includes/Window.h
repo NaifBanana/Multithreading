@@ -4,6 +4,7 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <atomic>
 #include <array>
 #include <string>
 #include <iostream>
@@ -13,6 +14,8 @@ class NBWindow {
 public:
     NBWindow(const std::array<uint16_t, 2>, const char*, GLFWmonitor* initMonitor=NULL, GLFWwindow* initWindow=NULL);
     NBWindow(const uint16_t, const uint16_t, const char*, GLFWmonitor* initMonitor=NULL, GLFWwindow* initWindow=NULL);
+    ~NBWindow();
+
 
     int init();
     GLFWwindow* getWindow() const;
@@ -21,7 +24,9 @@ public:
     void resize(const std::array<uint16_t, 2>);
     void resize(const uint16_t x, const uint16_t y);
 
-private:
+protected:
+    static std::atomic<uint8_t> windowCount;
+
     std::array<uint16_t, 2> windowSize;
     std::string windowName;
     bool ready=false, running=false;
