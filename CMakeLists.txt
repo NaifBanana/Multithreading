@@ -11,8 +11,12 @@ include(CPACK)
 include_directories(./dep ./includes)
 link_directories(../libs/glfw-3.3.9/build/src)
 
-add_executable(main source/main.cpp source/Window.cpp source/Events.cpp source/funcs.cpp source/shader.cpp ../libs/glad/src/glad.c)
-target_link_libraries(main glfw3)
+add_library(NBEvents source/Events.cpp)
+
+add_library(NBWindows source/Window.cpp)
+
+add_executable(main source/main.cpp source/funcs.cpp source/shader.cpp ../libs/glad/src/glad.c)
+target_link_libraries(main NBWindows NBEvents glfw3)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
