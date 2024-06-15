@@ -8,24 +8,38 @@ void bPressAlert() {
     std::cout << "B PRESSED\n";
 }
 
-NB::NBEvent aKeyEvent(A_PRESSED, aPressAlert, "A_PRESSED");
-NB::NBEvent bKeyEvent(B_PRESSED, bPressAlert, "B_PRESSED");
-NB::NBEvent windowCloseEvent(CLOSE_WIND_SIG, stopWindows, "CLOSE_WINDOWS_SIG");
+void windowCloseAlert() {
+    std::cout << "WINDOW SHOULD CLOSE\n";
+}
 
-NB::NBState windowAIsReadyState(WINDOW_READY_A, "WINDOW_A_READY");
-NB::NBState windowBIsReadyState(WINDOW_READY_B, "WINDOW_B_READY");
-NB::NBState windowShouldCloseState(WINDOW_SHOULD_CLOSE, "WINDOW_CLOSING_STATE");
-NB::NBState programCloseState(PROGRAM_SHOULD_CLOSE, "PROGRAM_CLOSING_STATE");
+NB::NBEventBasic aKeyEvent(A_PRESSED, aPressAlert, "A_PRESSED");
+NB::NBEventBasic bKeyEvent(B_PRESSED, bPressAlert, "B_PRESSED");
+NB::NBEventBasic windowCloseEvent(CLOSE_WIND_SIG, stopWindows, "CLOSE_WINDOWS_SIG");
 
-std::array<NB::NBEvent, 7> event_list= {
-    windowCloseEvent,
-    bKeyEvent,
-    aKeyEvent,
+NB::NBEventState windowAIsReadyState(WINDOW_READY_A, "WINDOW_A_READY");
+NB::NBEventState windowBIsReadyState(WINDOW_READY_B, "WINDOW_B_READY");
+NB::NBEventState windowShouldCloseState(WINDOW_SHOULD_CLOSE, windowCloseAlert, "WINDOW_CLOSING_STATE");
+NB::NBEventState programCloseState(PROGRAM_SHOULD_CLOSE, "PROGRAM_CLOSING_STATE");
+
+// std::array<NB::NBEventContainer, 7> event_list= {
+//     windowCloseEvent,
+//     bKeyEvent,
+//     aKeyEvent,
+
+//     windowAIsReadyState,
+//     windowBIsReadyState,
+//     windowShouldCloseState,
+//     programCloseState
+// };
+std::array<NB::NBEvents*, 7> event_list= {
+    &windowCloseEvent,
+    &bKeyEvent,
+    &aKeyEvent,
     
-    windowAIsReadyState,
-    windowBIsReadyState,
-    windowShouldCloseState,
-    programCloseState
+    &windowAIsReadyState,
+    &windowBIsReadyState,
+    &windowShouldCloseState,
+    &programCloseState
 };
 NB::NBEventListener my_listener(event_list);
 
@@ -66,6 +80,7 @@ void stopWindows() {
 
 int renderingProcessA() {
     std::cout << "Howdy from rendering A!\n";
+    std::cout << "FROM RENDERING A I SEE IN EVENT LIST " << event_list[3]->getName() << "\n";
     if ( aWindow->init() ) { return -1; }
 
     my_listener.raiseFlags(WINDOW_READY_A);

@@ -14,7 +14,6 @@ extern NB::NBEventListener my_listener;
 int main() {
     std::cout << "Hello World!\n";
 
-{
     NB::NBWindow windowa(800, 600, "Multithreading?");
     NB::NBWindow windowb(800, 600, "Multithreading!");
     aWindow = &windowa;
@@ -33,7 +32,6 @@ int main() {
     }
     std::cout << "YOUVE REACHED THE END OF THE MAIN THREAD!\n";
 
-}
 
     state_register* state = my_listener.getStatePtr();
     delete state;

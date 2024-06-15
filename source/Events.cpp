@@ -1,24 +1,27 @@
 #include "Events.h"
-namespace NB {
 
-std::invalid_argument null_mask_error("NULL MASK NOT ALLOWED");
+namespace NB {
 
 void NULL_FUNC() {}
 
-NBEvent::NBEvent() {}
+std::invalid_argument null_mask_error("NULL MASK NOT ALLOWED");
 
-NBEvent::NBEvent(const uint64_t initMask, void (*initFunc)(), const char* initName) : mask{initMask}, func{initFunc}, name{initName} {
-        if (mask == 0x0) {
-            throw null_mask_error;
-        }
+NBEvents::NBEvents(const uint64_t initMask, void (*initFunc)(), const char* initName):
+    mask(initMask), func(initFunc), name(initName) {
+    if (mask == 0x0) {
+        throw null_mask_error;
+    }
+
 }
 
-NBEvent::NBEvent(const uint64_t initMask, const char* initName) : NBEvent(initMask, NULL_FUNC, initName) {}
+NBEvents::NBEvents(const uint64_t initMask, const char* initName):
+    NBEvents(initMask, NULL_FUNC, initName) {}
 
-NBEvent::NBEvent(NBEvent& cpy) : NBEvent(cpy.mask, cpy.func, cpy.name.c_str()) {}
+NBEvents::NBEvents(const NBEvents& cpy)
+:NBEvents(cpy.mask, cpy.func, cpy.name.c_str())  {}
 
-NBEvent& NBEvent::operator=(NBEvent& cpy) {
-    func = cpy.func;
+NBEvents& NBEvents::operator=(const NBEvents& cpy) {
+    func =  cpy.func;
     name = cpy.name;
     mask = cpy.mask;
     if (mask==0x0) {
@@ -27,29 +30,29 @@ NBEvent& NBEvent::operator=(NBEvent& cpy) {
     return *this;
 }
 
-NBEvent::~NBEvent() {}
+NBEvents::~NBEvents() { func = nullptr; }
 
-const uint64_t NBEvent::getMask() const {
-    return mask;
-}
+const std::string NBEvents::getName() const { return name; }
 
-const std::string NBEvent::getName() const {
-    return name;
-}
+const uint64_t NBEvents::getMask() const { return mask; }
 
-void NBEvent::setFunc(void (*newFunc)()) {
-    func = newFunc;
-}
-
-void NBEvent::setMask(const uint64_t newMask) {
+void NBEvents::setMask(const uint64_t newMask) {
     mask = newMask;
 }
 
-void NBEvent::setName(const char* newName) {
+void NBEvents::setName(const char* newName) {
     name = newName;
 }
 
-const uint64_t NBEvent::check(const uint64_t refState) const{
+void NBEvents::setFunc(void (*newFunc)()) {
+    func = newFunc;
+}
+
+NBEventBasic* NBEventBasic::clone() const { return new NBEventBasic(*this); }
+
+NBEventState* NBEventState::clone() const { return new NBEventState(*this); }
+
+const uint64_t NBEventBasic::check(const uint64_t refState) const {
     if ((mask!=0) && ((refState&mask)==mask)) {
         func();
         return refState&(~mask);
@@ -57,29 +60,26 @@ const uint64_t NBEvent::check(const uint64_t refState) const{
     return refState;
 }
 
-const uint64_t NBState::check(const uint64_t refState) const {
+const uint64_t NBEventState::check(const uint64_t refState) const {
     if ((mask!=0) && ((refState&mask)==mask)) {
         func();
     }
     return refState;
 }
 
-NBEventListener::NBEventListener(NBEvent* initEventList, uint16_t initNum, state_register* initStatePtr, const uint64_t initState) 
-    : stateBuffer() {
+NBEventListener::NBEventListener(NBEvents** initEventList, uint16_t initNum, const uint64_t initState, state_register* initStatePtr) {
     if (initStatePtr == nullptr) {
         state = new state_register;
+    } else {
+        state = initStatePtr;
     }
     
-    std::atomic_store<uint64_t>(state, initState);
+    state->store(initState);
     numEvents = initNum;
-    eventList = new NBEvent[numEvents];
+    eventList = new NBEvents*[numEvents];
     for (uint16_t i = 0; i < initNum; ++i) {
-        eventList[i] = initEventList[i];
+        eventList[i] = initEventList[i]->clone();
     }
-}
-
-NBEvent& NBEventListener::operator[](int ind) {
-    return eventList[ind % numEvents];
 }
 
 state_register* NBEventListener::getStatePtr() const {
@@ -87,7 +87,7 @@ state_register* NBEventListener::getStatePtr() const {
 }
 
 const uint64_t NBEventListener::getState() const {
-    return std::atomic_load<uint64_t>(state);
+    return state->load();
 }
 
 void NBEventListener::raiseFlags(const uint64_t newState) {
@@ -96,7 +96,7 @@ void NBEventListener::raiseFlags(const uint64_t newState) {
     bufferLock.unlock();
 }
 
-void NBEventListener::raiseFlags(const NBEvent& newEvent) {
+void NBEventListener::raiseFlags(const NBEvents& newEvent) {
     raiseFlags(newEvent.mask);
 }
 
@@ -106,7 +106,7 @@ void NBEventListener::dropFlags(const uint64_t dropState) {
     bufferLock.unlock();
 }
 
-void NBEventListener::dropFlags(const NBEvent& dropEvent) {
+void NBEventListener::dropFlags(const NBEvents& dropEvent) {
     dropFlags(dropEvent.mask);
 }
 
@@ -114,21 +114,21 @@ const bool NBEventListener::snoop(const uint64_t refState) const {
     return ((getState()&refState)==refState);
 }
 
-const bool NBEventListener::snoop(const NBEvent& refEvent) const {
+const bool NBEventListener::snoop(const NBEvents& refEvent) const {
     return snoop(refEvent.mask);
 }
 
-void NBEventListener::setState(const uint64_t newState) {
+void NBEventListener::_setState(const uint64_t newState) {
     bufferLock.lock();
     std::queue<NBStateChange>().swap(stateBuffer);
     bufferLock.unlock();
-    std::atomic_store<uint64_t>(state, newState);
+    state->store(newState);
 }
 
 void NBEventListener::listen() {
     uint64_t oldState = getState();
     for (uint16_t i = 0; i < numEvents; ++i) {
-        oldState = eventList[i].check(oldState);
+        oldState = eventList[i]->check(oldState);
     }
     NBStateChange curr;
     bufferLock.lock();
@@ -149,13 +149,13 @@ void NBEventListener::listen() {
         }
     }
     bufferLock.unlock();
-    setState(oldState);
+    _setState(oldState);
 }
 
-void NBEventListener::listen(const NBEvent& refEvent) {
+void NBEventListener::listen(const NBEvents& refEvent) {
     uint64_t oldState = getState();
     oldState = refEvent.check(oldState);
-    setState(oldState);
+    _setState(oldState);
 }
 
 };
